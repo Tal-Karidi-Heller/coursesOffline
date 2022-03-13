@@ -21,7 +21,7 @@ def calc_velocity(omega, b, v):
     return (v - omega * b, v + omega * b)
 
     
-def cubic_spline_course(point0, point1, v0, v1, wanted_speed, half_DBM, L, FBack, acc, firstVelocity = 0, lastVelocity = 0):
+def cubic_spline_course(point0, point1, v0, v1, wanted_speed, half_DBM, L, FBack, acc, dcc, firstVelocity = 0, lastVelocity = 0):
     x0, y0, a0, x1, y1, a1 = point0[0], point0[1], point0[2], point1[0], point1[1], point1[2]
     a, b, c, d = (-2 * x1) + (v0 * cos(radians(a0))) + (2 * x0) + (v1 * cos(radians(a1))), (3 * x1) - (2 * v0 * cos(radians(a0))) - (3 * x0) - (v1 * cos(radians(a1))), v0 * cos(radians(a0)), x0
     e, f, g, h = (-2 * y1) + (v0 * sin(radians(a0))) + (2 * y0) + (v1 * sin(radians(a1))), (3 * y1) - (2 * v0 * sin(radians(a0))) - (3 * y0) - (v1 * sin(radians(a1))), v0 * sin(radians(a0)), y0
@@ -36,8 +36,10 @@ def cubic_spline_course(point0, point1, v0, v1, wanted_speed, half_DBM, L, FBack
 
     if FBack == True:
         def angle(s): return degrees(atan2(y_tag(s), x_tag(s)))
+        def angle2(s): return degrees(atan2(y_tag(s), x_tag(s)))
     else:
         def angle(s): return degrees(atan2(y_tag(s), x_tag(s))) - 180
+        def angle2(s): return degrees(atan2(y_tag(s), x_tag(s))) + 180
 
     def x_tilda(s): return x(s) + cos(radians(angle(s))) * L
     def y_tilda(s): return y(s) + sin(radians(angle(s))) * L
@@ -97,7 +99,7 @@ def cubic_spline_course(point0, point1, v0, v1, wanted_speed, half_DBM, L, FBack
     accVelocity = lastVelocity
 
     for point in points[::-1]:
-        Vf = pow(pow(accVelocity, 2) + abs(2 * acc * point['d']), 0.5)
+        Vf = pow(pow(accVelocity, 2) + abs(2 * dcc * point['d']), 0.5)
         lastSpeed = point['speed']
 
         accVelocity = min([Vf, abs(point['speed'])])
@@ -170,7 +172,8 @@ def cubic_spline_course(point0, point1, v0, v1, wanted_speed, half_DBM, L, FBack
     for index in range(len(arrangedPoints)):
         point = arrangedPoints[index]
 
-        Vr, Vl = motorsSpeed(point['x velocity'], point['y velocity'], -angle(point['s']), L, half_DBM)
+        print(-angle2(point['s']))
+        Vr, Vl = motorsSpeed(point['x velocity'], point['y velocity'], -angle2(point['s']), L, half_DBM)
 
         arrangedPoints[index]['Vr'] = Vr
         arrangedPoints[index]['Vl'] = Vl
@@ -196,23 +199,31 @@ def cubic_spline_course(point0, point1, v0, v1, wanted_speed, half_DBM, L, FBack
     arrangedPoints[-1].pop('y velocity'); arrangedPoints[-1].pop('d')
     arrangedPoints[-1].pop('speed')
 
-    print(arrangedPoints[11])
+    print(arrangedPoints[-1])
     return {'points': arrangedPoints, 'length': length(1), 'time': arrangedPoints[-1]['t']}
 
-def plot_spline(point0, point1, number, WS, V0, V1, L, FBack, acc):
+def plot_spline(point0, point1, number, WS, V0, V1, L, FBack, acc, dcc = True, firstVelocity = 0, lastVelocity = 0):
     # cubic_spline_course(point0, point1, v0, v1, wanted_speed, half_DBM, L, FBack, acc, firstVelocity = 0, lastVelocity = 0)
-    course = cubic_spline_course(point0, point1, V0, V1, WS, 5, L, FBack, acc)
+    if dcc == True:
+        dcc = acc
+    
+    course = cubic_spline_course(point0, point1, V0, V1, WS, 5, L, FBack, acc, dcc, firstVelocity, lastVelocity)
     points, length, lastTime = course['points'], course['length'], course['time']
     print('\nlast time', lastTime)
 
     xPoints, yPoints = [point['x'] for point in points], [point['y'] for point in points]
 
-    with open("points.py", "a") as file:
-        file.write(f"\npoints_spline{number} = " + str(points) + "\n" + f"lastTime{number} = " + str(lastTime))
+    
  
     plt.figure("x and y"); plt.plot(xPoints, yPoints)
 
     plt.show()
+
+    _list = [[round(point['x'], 5) for point in points], [round(point['y'], 5) for point in points], [round(point['Vr'], 5) for point in points],
+            [round(point['Vl'], 5) for point in points], [round(point['rightAcc'], 5) for point in points], [round(point['leftAcc'], 5) for point in points]]
+
+    with open("points.py", "a") as file:
+        file.write(f"\npoints_spline{number} = " + str(_list) + "\n" + f"lastTime{number} = " + str(lastTime))
 
 with open("points.py", "w") as file: file.write("")
 
